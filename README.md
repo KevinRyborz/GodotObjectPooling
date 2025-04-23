@@ -1,5 +1,32 @@
 # Object Pooling in Godot
+- [x] #739
+- [ ] https://github.com/octo-org/octo-repo/issues/740
+- [ ] Add delight to the experience when all tasks are complete :tada:
 
+> [!NOTE]
+> Useful information that users should know, even when skimming content.
+
+> [!TIP]
+> Helpful advice for doing things better or more easily.
+
+> [!IMPORTANT]
+> Key information users need to know to achieve their goal.
+
+> [!WARNING]
+> Urgent info that needs immediate user attention to avoid problems.
+
+> [!CAUTION]
+> Advises about risks or negative outcomes of certain actions.
+
+<span style="color:blue">some *blue* text</span>
+
+```diff
+- minus is always red
++ plus is always green
+! wtf is always orange
+# sharp is always gray
+@@ at is always purple and bold (and bold)@@
+```
 
 ## Motivation
 In der Spieleentwicklung, insbesondere bei Spielen mit vielen kurzlebigen Objekten (z. B. Projektile, Partikeleffekte, Gegner), kann das ständige Erzeugen (Instanziieren) und Zerstören dieser Objekte zu Leistungseinbußen führen. Jedes instanzierte Objekt wird im Speicher allokiert, initialisiert, zur Szene hinzugefügt und später aufgrund von Ereignissen wie Kollisionen aus dem Speicher entfernt. Wenn dies häufig in kurzer Zeit geschieht, kann es zu spürbaren Rucklern kommen.
