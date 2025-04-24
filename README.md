@@ -1,10 +1,16 @@
 # Object Pooling in Godot
+> [!NOTE]
+> [<kbd><br>Web Build</br><br></kbd>](https://kevinryborz.github.io/GodotObjectPooling/)
+
+
 - [x] #739
 - [ ] https://github.com/octo-org/octo-repo/issues/740
 - [ ] Add delight to the experience when all tasks are complete :tada:
 
 > [!NOTE]
 > Useful information that users should know, even when skimming content.
+> ### Erklärung zu `turret.gd`
+
 
 > [!TIP]
 > Helpful advice for doing things better or more easily.
@@ -18,15 +24,7 @@
 > [!CAUTION]
 > Advises about risks or negative outcomes of certain actions.
 
-<span style="color:blue">some *blue* text</span>
 
-```diff
-- minus is always red
-+ plus is always green
-! wtf is always orange
-# sharp is always gray
-@@ at is always purple and bold (and bold)@@
-```
 
 ## Motivation
 In der Spieleentwicklung, insbesondere bei Spielen mit vielen kurzlebigen Objekten (z. B. Projektile, Partikeleffekte, Gegner), kann das ständige Erzeugen (Instanziieren) und Zerstören dieser Objekte zu Leistungseinbußen führen. Jedes instanzierte Objekt wird im Speicher allokiert, initialisiert, zur Szene hinzugefügt und später aufgrund von Ereignissen wie Kollisionen aus dem Speicher entfernt. Wenn dies häufig in kurzer Zeit geschieht, kann es zu spürbaren Rucklern kommen.
@@ -125,7 +123,8 @@ Nachfolgend ein Beispiel für ein GDScript zur Verwaltung eines Object Pools:
     	if is_active:
     		deactivate()
 
-### Erklärung zu `projectile.gd`
+> [!NOTE]
+> ### Erklärung zu `projectile.gd`
 <details>
 <summary>Aufklappen</summary>
 
@@ -138,7 +137,7 @@ Hier werden die Geschwindigkeit, die Schussrichtung und die bool, welche für di
       func _process(delta):
         	if is_active:
         		global_translate(direction * speed * delta)
-In der process function (jeden tick) wird geprüft ob das Projektil aktiviert ist. Wenn ja soll es in die Schussrichtung mit der zuvor gesetzen Geschwindigkeit fliegen.
+In der `process` Funktion (jeden tick) wird geprüft ob das Projektil aktiviert ist. Wenn ja soll es in die Schussrichtung mit der zuvor gesetzen Geschwindigkeit fliegen.
 
 ---
     func activate(pos: Vector3, dir: Vector3):
@@ -183,7 +182,6 @@ Wenn ein Projektil instanziert wurde gibt es zwei Möglichkeiten wie es deaktivi
     @export var projectile_speed = 20.0
     
     var projectile_pool = []
-    var current_pool_index = 0
     
     @onready var spawn_point: Node3D = self
     
@@ -191,7 +189,6 @@ Wenn ein Projektil instanziert wurde gibt es zwei Möglichkeiten wie es deaktivi
     	if projectile_scene == null:
     		print("Projectile scene not set!")
     		return
-    
     	for i in range(pool_size):
     		var projectile = projectile_scene.instantiate()
     		add_child(projectile)
@@ -210,30 +207,21 @@ Wenn ein Projektil instanziert wurde gibt es zwei Möglichkeiten wie es deaktivi
     	return inactive_count
     
     func spawn_projectiles():
-    	if projectile_pool.is_empty():
-    		print("Projectile pool is empty!")
-    		return
-    
     	if count_inactive_projectiles() < projectiles_per_shot:
-    		print("Nicht genügend inaktive Projektile verfügbar! Benötigt: ", projectiles_per_shot)
+    		print("Nicht genügend inaktive Projektile! Benötigt:", projectiles_per_shot)
     		return
     
-    	var base_direction = -global_transform.basis.z 
-    
+    	var base_direction = -global_transform.basis.z
     	for i in range(projectiles_per_shot):
     		var projectile = get_pooled_projectile()
     		if projectile:
     			var angle_step = 0.0
     			if projectiles_per_shot > 1:
     				angle_step = spread_angle_degrees / (projectiles_per_shot - 1)
-    
     			var current_angle = -spread_angle_degrees / 2.0 + i * angle_step
     			var angle_rad = deg_to_rad(current_angle)
-    
     			var rotation_transform = Transform3D().rotated(Vector3.UP, angle_rad)
-    
     			var spawn_direction = rotation_transform.basis * base_direction
-    
     			projectile.speed = projectile_speed
     			projectile.activate(spawn_point.global_position, spawn_direction)
     
@@ -241,10 +229,10 @@ Wenn ein Projektil instanziert wurde gibt es zwei Möglichkeiten wie es deaktivi
     	for projectile in projectile_pool:
     		if not projectile.is_active:
     			return projectile
-    	print("Kein freies Projektil im Pool gefunden!")
     	return null
-
-### Erklärung zu `turret.gd`
+     
+> [!NOTE]
+> ### Erklärung zu `turret.gd`
 <details>
 <summary>Aufklappen</summary>
 
@@ -255,7 +243,6 @@ Wenn ein Projektil instanziert wurde gibt es zwei Möglichkeiten wie es deaktivi
     @export var projectile_speed = 20.0
     
     var projectile_pool = []
-    var current_pool_index = 0
     
     @onready var spawn_point: Node3D = self
     
@@ -263,31 +250,74 @@ Wenn ein Projektil instanziert wurde gibt es zwei Möglichkeiten wie es deaktivi
     	if projectile_scene == null:
     		print("Projectile scene not set!")
     		return
-    
     	for i in range(pool_size):
     		var projectile = projectile_scene.instantiate()
     		add_child(projectile)
     		projectile.deactivate()
-    		projectile_pool.append(projectile)
+    		projectile_pool.append(projectile) 
+    
 Hier werden die Grundvariablen für den Projectile Pool gesetzt. Durch `@export` können diese auch über den Editor eingestellt werden. Zusätzlich wird ein leeres Array `projectile_pool` erstellt welches Referenzen zu allen Projectiles besitzt. 
 In der `ready` Funktion werden anschließend mittels eines `for` Loops die Projektile instanziert, als children zum Turret hinzugefügt und deaktiviert um Kollisionen zu verhindern und sie unsichtbar zu machen. In jedem Loop durchlauf werden außerdem mit `projectile_pool.append(projectile)` die
 instanzierten Projektile zum Array hinzugefügt.
 
+---
+
+    func count_inactive_projectiles():
+    	var inactive_count = 0
+    	for projectile in projectile_pool:
+    		if not projectile.is_active:
+    			inactive_count += 1
+    	return inactive_count
+
+Die `count_inactive_projectiles` Funktion wird verwendet um die derzeit inaktiven Projektile zu zählen. Der count wird in der `spawn_projectiles()` Funktion genutzt um nur dann Projektile zu spawnen, wenn mindestens so viele Projektile inaktiv und somit vorhanden sind wie die Anzahl die verschossen werden soll.
+
+---
+
+    func get_pooled_projectile():
+    	for projectile in projectile_pool:
+    		if not projectile.is_active:
+    			return projectile
+    	return null
+
+Die `get_pooled_projectile()` Funktion wird auch in `spawn_projectiles()` verwendet. Sie wird in jedem Schleifendurchgang von `spawn_projectiles()` aufgerufen und gibt, sofern vorhanden, ein inaktives Projektil zurück. Sind alle Projektile derzeit aktiviert gibt die Funktion `null` zurück.
+
+---
+
+    func spawn_projectiles():
+    	if count_inactive_projectiles() < projectiles_per_shot:
+    		print("Nicht genügend inaktive Projektile! Benötigt:", projectiles_per_shot)
+    		return
+    
+    	var base_direction = -global_transform.basis.z
+    	for i in range(projectiles_per_shot):
+    		var projectile = get_pooled_projectile()
+    		if projectile:
+    			var rotation_transform = Transform3D().rotated(Vector3.UP, 0)
+    			var spawn_direction = rotation_transform.basis * base_direction
+    			projectile.speed = projectile_speed
+    			projectile.activate(spawn_point.global_position, spawn_direction)
+
+Die `spawn_projectiles()` Funkion überprüft zuerst ob genug inaktive Projektile vorhanden. Wenn ja wird `get_pooled_projectile()` aufgerufen um ein Projektil zu erhalten das aktiviert werden soll. 
+Wenn das Projektil valide ist werden anschließend `transform` und `rotation` sowie die Geschwindigkeit gesetzt. Anschließend wird die `activate()` Funktion der Projektile aufgerufen welche die zuvor gesetzten Parameter erhält.
+
 
 </details>
 
+<br>
 
 ## Beispielprojekt
-
+<br>
 
 |[Web Build](https://kevinryborz.github.io/GodotObjectPooling/)|
 |---|
-
-> hinzufügen dass man den pool ja begrenzen kann gar nicht zu schießen wenn nicht mindestens X projektile im Pool sind
-
 > [!NOTE]
 > Mit der **Linken Maustaste** können die Projektile abgefeuert werden. Sind keine im Pool vorhanden werden keine mehr instanziert.
 > Alle zerstörten Projektile (aufgrund von Kollision oder Zeit) werden in den Pool zurückgeführt.
+
+|[Project Files](https://github.com/KevinRyborz/GodotObjectPooling/releases/tag/v.0.0.1)|
+|---|
+
+
 
 
 ## Erklärung
@@ -296,6 +326,4 @@ Initialisierung: Der Pool wird in _ready() mit pool_size Instanzen der Projektil
 Objekte anfordern: Die Methode get_object() prüft, ob ein ungenutztes Objekt (basierend auf Sichtbarkeit) verfügbar ist. Falls nicht, wird dynamisch ein neues erstellt.
 Objekte zurückgeben: Die Methode return_object() deaktiviert das Objekt und setzt es in einen ungenutzten Zustand zurück, sodass es für zukünftige Anforderungen verfügbar ist.
 
-Diese Implementierung ist einfach, aber effektiv für die meisten Anwendungsfälle in Godot und bietet eine gute Balance zwischen Leistung und Benutzerfreundlichkeit.
 
-Dieser Leitfaden soll Godot-Entwicklern helfen, ihre Spiele mit dem Object Pooling Pattern zu optimieren. Weitere Details findest du in der offiziellen Godot-Dokumentation oder in Community-Ressourcen.
