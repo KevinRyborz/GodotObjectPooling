@@ -70,12 +70,12 @@ Object Pooling ist sinnvoll, wenn:
 Das Object Pooling Pattern löst dieses Problem, indem es den Lebenszyklus der Objekte verändert:
 
 ---
-1. Initialisierung: Zu Beginn eines Levels oder Spielabschnitts wird eine bestimmte Anzahl von Objekten des gewünschten Typs erstellt und in einem Pool gespeichert. Diese Objekte sind zunächst inaktiv, unsichtbar und befinden sich in einem deaktivierten Zustand.
-2. Anforderung: Wenn ein Objekt benötigt wird, fragt der anfordernde Code (der "Client", z. B. der Spieler-Charakter, der ein Projektil abfeuern möchte) den Pool nach einem verfügbaren Objekt.
-3. Entnahme: Der Pool liefert ein ungenutztes Objekt aus seiner Sammlung.
-4. Nutzung: Der Client initialisiert das erhaltene Objekt für seine spezifische Verwendung (z. B. setzt Position, Richtung, Geschwindigkeit) und aktiviert es (macht es sichtbar).
-5. Rückgabe: Wenn das Objekt nicht mehr benötigt wird (z. B. das Projektil trifft ein Ziel oder verlässt den Bildschirm), ruft der Client eine Methode am Pool auf, um das Objekt zurückzugeben.
-6. Wiederverwertung: Der Pool setzt das zurückgegebene Objekt in seinen ungenutzten Zustand zurück (macht es unsichtbar, deaktiviert es) und fügt es wieder seiner Sammlung hinzu, bereit für die nächste Anforderung.
+1. **Initialisierung**: Zu Beginn eines Levels oder Spielabschnitts wird eine bestimmte Anzahl von Objekten des gewünschten Typs erstellt und in einem Pool gespeichert. Diese Objekte sind zunächst inaktiv, unsichtbar und befinden sich in einem deaktivierten Zustand.
+2. **Anforderung**: Wenn ein Objekt benötigt wird, fragt der anfordernde Code (der "Client", z. B. der Spieler-Charakter, der ein Projektil abfeuern möchte) den Pool nach einem verfügbaren Objekt.
+3. **Entnahme**: Der Pool liefert ein ungenutztes Objekt aus seiner Sammlung.
+4. **Nutzung**: Der Client initialisiert das erhaltene Objekt für seine spezifische Verwendung (z. B. setzt Position, Richtung, Geschwindigkeit) und aktiviert es (macht es sichtbar).
+5. **Rückgabe**: Wenn das Objekt nicht mehr benötigt wird (z. B. das Projektil trifft ein Ziel oder verlässt den Bildschirm), ruft der Client eine Methode am Pool auf, um das Objekt zurückzugeben.
+6. **Wiederverwertung**: Der Pool setzt das zurückgegebene Objekt in seinen ungenutzten Zustand zurück (macht es unsichtbar, deaktiviert es) und fügt es wieder seiner Sammlung hinzu, bereit für die nächste Anforderung.
 ---
 
 Der Kern des Patterns ist die Vermeidung des wiederholten Instanziierens und Freigebens zur Laufzeit. Stattdessen wird der Hauptaufwand auf die Initialisierung des Pools verlagert. Während des Spiels werden Objekte lediglich "ausgeliehen" und "zurückgegeben", was in der Regel deutlich performanter ist als das vollständige Erstellen und Zerstören von Knoten im Szenenbaum.
@@ -173,6 +173,7 @@ Wenn ein Projektil instanziert wurde gibt es zwei Möglichkeiten wie es deaktivi
 </details>
 
 ### turret.gd
+    
     extends Node3D
     
     @export var projectile_scene: PackedScene
@@ -201,9 +202,22 @@ Wenn ein Projektil instanziert wurde gibt es zwei Möglichkeiten wie es deaktivi
     	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
     		spawn_projectiles()
     
+    # Zählt die Anzahl der inaktiven Projektile im Pool
+    func count_inactive_projectiles():
+    	var inactive_count = 0
+    	for projectile in projectile_pool:
+    		if not projectile.is_active:
+    			inactive_count += 1
+    	return inactive_count
+    
     func spawn_projectiles():
     	if projectile_pool.is_empty():
     		print("Projectile pool is empty!")
+    		return
+    
+    	# Prüfe, ob genügend inaktive Projektile verfügbar sind
+    	if count_inactive_projectiles() < projectiles_per_shot:
+    		print("Nicht genügend inaktive Projektile verfügbar! Benötigt: ", projectiles_per_shot)
     		return
     
     	var base_direction = -global_transform.basis.z 
@@ -226,20 +240,43 @@ Wenn ein Projektil instanziert wurde gibt es zwei Möglichkeiten wie es deaktivi
     			projectile.activate(spawn_point.global_position, spawn_direction)
     
     func get_pooled_projectile():
-    	for i in range(pool_size):
-    		var pool_index = (current_pool_index + i) % pool_size
-    		if not projectile_pool[pool_index].is_active:
-    			current_pool_index = (pool_index + 1) % pool_size
-    			return projectile_pool[pool_index]
-    
-    	print("Pool exhausted!")
-    	return null 
-     
+    	# Gehe durch alle Projektile im Pool
+    	for projectile in projectile_pool:
+    		# Wenn ein Projektil nicht aktiv ist, geben wir es zurück
+    		if not projectile.is_active:
+    			return projectile
+    	# Wenn kein inaktives Projektil gefunden wurde, geben wir nichts zurück
+    	print("Kein freies Projektil im Pool gefunden!")
+    	return null
+
 ### Erklärung zu `turret.gd`
 <details>
 <summary>Aufklappen</summary>
 
-sachen sagen machen 
+    @export var projectile_scene: PackedScene
+    @export var pool_size = 20
+    @export var projectiles_per_shot = 5
+    @export var spread_angle_degrees = 30.0
+    @export var projectile_speed = 20.0
+    
+    var projectile_pool = []
+    var current_pool_index = 0
+    
+    @onready var spawn_point: Node3D = self
+    
+    func _ready():
+    	if projectile_scene == null:
+    		print("Projectile scene not set!")
+    		return
+    
+    	for i in range(pool_size):
+    		var projectile = projectile_scene.instantiate()
+    		add_child(projectile)
+    		projectile.deactivate()
+    		projectile_pool.append(projectile)
+Hier werden die Grundvariablen für den Projectile Pool gesetzt. Durch `@export` können diese auch über den Editor eingestellt werden. Zusätzlich wird ein leeres Array `projectile_pool` erstellt welches Referenzen zu allen Projectiles besitzt. 
+In der `ready` Funktion werden anschließend mittels eines `for` Loops die Projektile instanziert, als children zum Turret hinzugefügt und deaktiviert um Kollisionen zu verhindern und sie unsichtbar zu machen. In jedem Loop durchlauf werden außerdem mit `projectile_pool.append(projectile)` die
+instanzierten Projektile zum Array hinzugefügt.
 
 
 </details>
@@ -248,7 +285,7 @@ sachen sagen machen
 ## Beispielprojekt
 
 
-|[Example](https://kevinryborz.github.io/GodotObjectPooling/)|
+|[Web Build](https://kevinryborz.github.io/GodotObjectPooling/)|
 |---|
 
 > hinzufügen dass man den pool ja begrenzen kann gar nicht zu schießen wenn nicht mindestens X projektile im Pool sind
