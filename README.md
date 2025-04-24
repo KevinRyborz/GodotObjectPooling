@@ -182,9 +182,10 @@ Nachfolgend ein Beispiel für ein GDScript zur Verwaltung eines Object Pools:
     	print("Pool exhausted!")
     	return null 
 
-##Projekt
+## Beispielprojekt
 
-![image](https://github.com/user-attachments/assets/7bf5a71c-6949-4df0-a803-9d269f75d966)
+|[Web Anwendung]([https://github.com/](https://kevinryborz.github.io/GodotObjectPooling/)|
+|---|
 
 
 
