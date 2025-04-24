@@ -348,4 +348,3 @@ Wenn das Projektil valide ist werden anschließend `transform` und `rotation` so
 
 |[Project Files](https://github.com/KevinRyborz/GodotObjectPooling/releases/tag/v.0.0.1)|
 |---|
-
