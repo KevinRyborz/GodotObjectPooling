@@ -33,7 +33,6 @@ Dieser ständige Zyklus des Erzeugens und Zerstörens kann erhebliche Verarbeitu
 > [!IMPORTANT]
 > Obwohl Godot's Speicherverwaltung, insbesondere in GDScript, oft effizienter ist als in Umgebungen mit traditioneller Garbage Collection, und `queue_free()` asynchron arbeitet, kann der Overhead des Instanziierens von Szenen immer noch relevant sein, wenn es exzessiv betrieben wird.
 <br>
-<br>
 
 ## Das Pattern
 
@@ -45,6 +44,10 @@ Das **Object Pooling Pattern** ist ein Entwurfsmuster, das diese Leistungseinbu�
 4. **Rückgabe**: Nach Gebrauch wird das Objekt deaktiviert (unsichtbar und inaktiv) und in den Pool zurückgegeben, bereit für die Wiederverwendung.
 
 Der Kern des Patterns ist die **Vermeidung des wiederholten Instanziierens und Freigebens zur Laufzeit**. Stattdessen wird der Hauptaufwand auf die Initialisierung des Pools verlagert. Während des Spiels werden Objekte lediglich "ausgeliehen" und "zurückgegeben", was in der Regel deutlich performanter ist als das vollständige Erstellen und Zerstören von Knoten im Szenenbaum.
+
+![image](https://github.com/user-attachments/assets/86399fed-82e2-4dfa-b6a7-aa8426538135)
+> source: https://metabox.io/object-pool-pattern/
+
 <br>
 <br>
 
@@ -57,6 +60,57 @@ Object Pooling kann sinvoll sein wenn:
 - [ ] **Vermeidung von Speicherfragmentierung**, z. B. in Spielen mit langen Laufzeiten, wie Roguelikes, wo häufiges Allokieren und Freigeben von Speicher die Performance langfristig beeinträchtigen kann.
 
 <br>
+
+## Pseudocode
+
+    // Globale Variablen
+    pool = leeres Array        // Speichert alle Objekte im Pool
+    pool_size = 10             // Anzahl der Objekte im Pool
+    
+    // Initialisierung des Pools (wird einmal zu Spielbeginn ausgeführt)
+    Funktion initialisiere_pool():
+        Für i von 1 bis pool_size:
+            objekt = erstelle_neues_objekt()  // z. B. ein Projektil
+            objekt.deaktiviere()             // Objekt unsichtbar und inaktiv
+            pool.hinzufügen(objekt)          // Objekt zum Pool hinzufügen
+    
+    // Objekt aus dem Pool holen
+    Funktion hole_objekt():
+        Für jedes objekt in pool:
+            Wenn objekt.ist_inaktiv():
+                objekt.aktiviere()           // Objekt sichtbar und aktiv
+                Rückgabe objekt              // Gibt das Objekt zurück
+        Rückgabe null                        // Kein Objekt verfügbar
+    
+    // Objekt zurück in den Pool geben
+    Funktion gib_objekt_zurück(objekt):
+        objekt.deaktiviere()                 // Objekt unsichtbar und inaktiv
+        pool.hinzufügen(objekt)              // Objekt wieder im Pool
+    
+    // Beispiel für ein Objekt (z. B. Projektil)
+    Klasse Objekt:
+        ist_aktiv = falsch
+        
+        Funktion aktiviere():
+            ist_aktiv = wahr
+            sichtbar = wahr
+            // Setze Eigenschaften wie Position, Geschwindigkeit
+        
+        Funktion deaktiviere():
+            ist_aktiv = falsch
+            sichtbar = falsch
+            // Setze Eigenschaften zurück
+    
+    
+    Funktion spieler_schießt():
+        projektil = hole_objekt()
+        Wenn projektil != null:
+            projektil.setze_position(spieler.position)
+            projektil.setze_richtung(vorwärts)
+            // Projektil fliegt jetzt
+    
+    Funktion projektil_fertig(projektil): // z. B. nach Kollision oder Zeit
+        gib_objekt_zurück(projektil)
 <br>
 
 # Implementierung in Godot
@@ -149,6 +203,8 @@ Wenn ein Projektil instanziert wurde gibt es zwei Möglichkeiten wie es deaktivi
 
 
 </details>
+
+---
 
 ### turret.gd
     
@@ -276,6 +332,8 @@ Wenn das Projektil valide ist werden anschließend `transform` und `rotation` so
 
 
 </details>
+
+---
 
 <br>
 
