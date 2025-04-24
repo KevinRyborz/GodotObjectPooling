@@ -60,9 +60,8 @@ Object Pooling kann sinvoll sein wenn:
 <br>
 
 # Implementierung in Godot
-Die Implementierung eines Object Pools in Godot kann auf verschiedene Arten erfolgen, oft unter Verwendung von Arrays oder Dictionaries, um die Objekte zu speichern. Für dieses Beispiel konzentrieren wir uns auf zwei Skripte: projectile.gd für die Funktionalität des Projektils und turret.gd, der den Pool verwaltet und Projektile abfeuert.
-Object Pool Skript
-Nachfolgend ein Beispiel für ein GDScript zur Verwaltung eines Object Pools:
+Die Implementierung eines Object Pools in Godot kann auf verschiedene Arten erfolgen, oft unter Verwendung von Arrays oder Dictionaries, um die Objekte zu speichern. Für dieses Beispiel konzentrieren wir uns auf zwei Skripte: `projectile.gd` für die Funktionalität des Projektils und `turret.gd`, der den Pool verwaltet und Projektile abfeuert.
+
 ### projectile.gd
     
     extends Node3D
