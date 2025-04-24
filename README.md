@@ -9,7 +9,7 @@
 > [!TIP]
 > Helpful advice for doing things better or more easily.
 
-> [!IMPORTANT]
+> [!wichtig]
 > Key information users need to know to achieve their goal.
 
 > [!WARNING]
@@ -37,6 +37,7 @@ Stell dir das wie eine Bibliothek vor: Anstatt jedes Mal ein neues Buch zu kaufe
 Ein klassisches Beispiel sind Projektile in Bullet Hell Shootern. In jedem Frame oder in kurzen Abständen werden neue Projektile instanziiert. Wenn sie den Bildschirm verlassen oder ein Ziel treffen, werden sie freigegeben. Bei einer großen Anzahl von Projektilen kann dieser Prozess die CPU belasten und zu Leistungsproblemen führen.
 Ohne Object Pooling könnte ein typischer Anwendungsfall in Godot so aussehen:
 
+---
 1. Ein Bedarf entsteht (z. B. der Spieler schießt).
 2. Ein neues Objekt (z. B. ein Projektil) wird instanziiert `(PackedScene.instance())`.
 3. Das Objekt wird initialisiert und zum Szenenbaum hinzugefügt `(add_child())`.
@@ -44,9 +45,12 @@ Ohne Object Pooling könnte ein typischer Anwendungsfall in Godot so aussehen:
 5. Das Objekt hat seinen Zweck erfüllt oder ist nicht mehr relevant (trifft etwas, verlässt den Bildschirm).
 6. Das Objekt wird zur Freigabe vorgemerkt `(queue_free())`.
 7. Später im Frame (oder danach) wird der Speicher des Objekts freigegeben.
+---
 
 Dieser ständige Zyklus des Erzeugens und Zerstörens kann erhebliche Verarbeitungszeit beanspruchen und zu Spitzen in der Frametime führen, wenn viele Objekte gleichzeitig erstellt oder freigegeben werden.
-Obwohl Godot's Speicherverwaltung, insbesondere in GDScript, oft effizienter ist als in Umgebungen mit traditioneller Garbage Collection, und `queue_free()` asynchron arbeitet, kann der Overhead des Instanziierens von Szenen immer noch relevant sein, wenn es exzessiv betrieben wird.
+
+> [!IMPORTANT]
+> Obwohl Godot's Speicherverwaltung, insbesondere in GDScript, oft effizienter ist als in Umgebungen mit traditioneller Garbage Collection, und `queue_free()` asynchron arbeitet, kann der Overhead des Instanziierens von Szenen immer noch relevant sein, wenn es exzessiv betrieben wird.
 
 ## Wann sollte Object Pooling verwendet werden?
 Object Pooling ist sinnvoll, wenn:
@@ -60,12 +64,14 @@ Object Pooling ist sinnvoll, wenn:
 ## Das Pattern
 Das Object Pooling Pattern löst dieses Problem, indem es den Lebenszyklus der Objekte verändert:
 
+---
 1. Initialisierung: Zu Beginn eines Levels oder Spielabschnitts wird eine bestimmte Anzahl von Objekten des gewünschten Typs erstellt und in einem Pool gespeichert. Diese Objekte sind zunächst inaktiv, unsichtbar und befinden sich in einem deaktivierten Zustand.
 2. Anforderung: Wenn ein Objekt benötigt wird, fragt der anfordernde Code (der "Client", z. B. der Spieler-Charakter, der ein Projektil abfeuern möchte) den Pool nach einem verfügbaren Objekt.
 3. Entnahme: Der Pool liefert ein ungenutztes Objekt aus seiner Sammlung.
 4. Nutzung: Der Client initialisiert das erhaltene Objekt für seine spezifische Verwendung (z. B. setzt Position, Richtung, Geschwindigkeit) und aktiviert es (macht es sichtbar).
 5. Rückgabe: Wenn das Objekt nicht mehr benötigt wird (z. B. das Projektil trifft ein Ziel oder verlässt den Bildschirm), ruft der Client eine Methode am Pool auf, um das Objekt zurückzugeben.
 6. Wiederverwertung: Der Pool setzt das zurückgegebene Objekt in seinen ungenutzten Zustand zurück (macht es unsichtbar, deaktiviert es) und fügt es wieder seiner Sammlung hinzu, bereit für die nächste Anforderung.
+---
 
 Der Kern des Patterns ist die Vermeidung des wiederholten Instanziierens und Freigebens zur Laufzeit. Stattdessen wird der Hauptaufwand auf die Initialisierung des Pools verlagert. Während des Spiels werden Objekte lediglich "ausgeliehen" und "zurückgegeben", was in der Regel deutlich performanter ist als das vollständige Erstellen und Zerstören von Knoten im Szenenbaum.
 
@@ -73,60 +79,114 @@ Der Kern des Patterns ist die Vermeidung des wiederholten Instanziierens und Fre
 Die Implementierung eines Object Pools in Godot kann auf verschiedene Arten erfolgen, oft unter Verwendung von Arrays oder Dictionaries, um die Objekte zu speichern. Für dieses Beispiel konzentrieren wir uns auf zwei Skripte: projectile.gd für die Funktionalität des Projektils und turret.gd, der den Pool verwaltet und Projektile abfeuert.
 Object Pool Skript
 Nachfolgend ein Beispiel für ein GDScript zur Verwaltung eines Object Pools:
-### projectile_pool.gd
-    extends Node
+### projectile.gd
     
-    var pooled_objects = []
-    var object_scene = preload("res://scenes/Projectile.tscn") # Szene des zu poolenden Objekts
-    var pool_size = 20 # Startgröße des Pools
+    extends Node3D
+    
+    var speed = 20.0
+    var direction = Vector3.FORWARD
+    var is_active = false
+    
+    @onready var collision_shape = $Area3D/CollisionShape3D
+    @onready var mesh_instance = $MeshInstance3D  
+    @onready var timer = $Timer
+    
+    func _process(delta):
+    	if is_active:
+    		global_translate(direction * speed * delta)
+    
+    func activate(pos: Vector3, dir: Vector3):
+    	global_position = pos
+    	direction = dir.normalized()
+    	is_active = true
+    	visible = true
+    	timer.start()
+    	if collision_shape:
+    		collision_shape.disabled = false
+    
+    func deactivate():
+    	is_active = false
+    	visible = false
+    	if collision_shape:
+    		collision_shape.disabled = true
+    
+    
+    func _on_timer_timeout():
+    	if is_active:
+    		deactivate()
+    
+    func _on_area_3d_body_entered(body: Node3D) -> void:
+    	if is_active:
+    		deactivate()
+
+### turret.gd
+    extends Node3D
+    
+    @export var projectile_scene: PackedScene
+    @export var pool_size = 20
+    @export var projectiles_per_shot = 5
+    @export var spread_angle_degrees = 30.0
+    @export var projectile_speed = 20.0
+    
+    var projectile_pool = []
+    var current_pool_index = 0
+    
+    @onready var spawn_point: Node3D = self
     
     func _ready():
-        # Pool initial füllen
-        for i in range(pool_size):
-            var new_object = object_scene.instance()
-            add_child(new_object) # Füge Objekt zum Szenenbaum hinzu (kann auch woanders sein)
-            new_object.visible = false
-            new_object.set_process(false)
-            new_object.set_physics_process(false)
-            # Optional: Deaktiviere Kollisionen, etc.
-            if new_object is CollisionObject2D:
-                new_object.set_deferred("monitorable", false)
-                new_object.set_deferred("monitoring", false)
-            pooled_objects.append(new_object)
-
-## Methode zum Anfordern eines Objekts aus dem Pool
-    func get_object():
-        for obj in pooled_objects:
-            if !obj.visible: # Einfacher Weg zu prüfen, ob das Objekt ungenutzt ist
-                obj.visible = true
-                obj.set_process(true)
-                obj.set_physics_process(true)
-                # Optional: Aktiviere Kollisionen, etc.
-                if obj is CollisionObject2D:
-                    obj.set_deferred("monitorable", true)
-                    obj.set_deferred("monitoring", true)
-                return obj
+    	if projectile_scene == null:
+    		print("Projectile scene not set!")
+    		return
     
-    # Optional: Wenn Pool leer ist, neues Objekt erstellen (dynamisches Pooling)
-    var new_object = object_scene.instance()
-    add_child(new_object)
-    pooled_objects.append(new_object)
-    print("Poolgröße erhöht auf ", pooled_objects.size()) # Zur Info
-    return new_object
-
+    	for i in range(pool_size):
+    		var projectile = projectile_scene.instantiate()
+    		add_child(projectile)
+    		projectile.deactivate()
+    		projectile_pool.append(projectile)
     
+    func _input(event):
+    	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
+    		spawn_projectiles()
+    
+    func spawn_projectiles():
+    	if projectile_pool.is_empty():
+    		print("Projectile pool is empty!")
+    		return
+    
+    	var base_direction = -global_transform.basis.z 
+    
+    	for i in range(projectiles_per_shot):
+    		var projectile = get_pooled_projectile()
+    		if projectile:
+    			var angle_step = 0.0
+    			if projectiles_per_shot > 1:
+    				angle_step = spread_angle_degrees / (projectiles_per_shot - 1)
+    
+    			var current_angle = -spread_angle_degrees / 2.0 + i * angle_step
+    			var angle_rad = deg_to_rad(current_angle)
+    
+    			var rotation_transform = Transform3D().rotated(Vector3.UP, angle_rad)
+    
+    			var spawn_direction = rotation_transform.basis * base_direction
+    
+    			projectile.speed = projectile_speed
+    			projectile.activate(spawn_point.global_position, spawn_direction)
+    
+    func get_pooled_projectile():
+    	for i in range(pool_size):
+    		var pool_index = (current_pool_index + i) % pool_size
+    		if not projectile_pool[pool_index].is_active:
+    			current_pool_index = (pool_index + 1) % pool_size
+    			return projectile_pool[pool_index]
+    
+    	print("Pool exhausted!")
+    	return null 
 
-## Methode zum Zurückgeben eines Objekts an den Pool
-    func return_object(obj):
-        obj.visible = false
-        obj.set_process(false)
-        obj.set_physics_process(false)
-        # Optional: Deaktiviere Kollisionen, etc.
-        if obj is CollisionObject2D:
-            obj.set_deferred("monitorable", false)
-            obj.set_deferred("monitoring", false)
-        # Setze das Objekt in einen Standardzustand zurück (Position, Geschwindigkeit, etc.)
-        # Dies muss im zurückgegebenen Objekt selbst oder hier geschehen.
+##Projekt
+
+![image](https://github.com/user-attachments/assets/7bf5a71c-6949-4df0-a803-9d269f75d966)
+
+
 
 ## Erklärung
 
