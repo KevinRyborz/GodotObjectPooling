@@ -1,42 +1,23 @@
 # Object Pooling in Godot
-> [!NOTE]
-> [<kbd><br>Web Build</br><br></kbd>](https://kevinryborz.github.io/GodotObjectPooling/)
-
-
-- [x] #739
-- [ ] https://github.com/octo-org/octo-repo/issues/740
-- [ ] Add delight to the experience when all tasks are complete :tada:
-
-> [!NOTE]
-> Useful information that users should know, even when skimming content.
-> ### Erklärung zu `turret.gd`
-
-
-> [!TIP]
-> Helpful advice for doing things better or more easily.
-
-> [!wichtig]
-> Key information users need to know to achieve their goal.
-
-> [!WARNING]
-> Urgent info that needs immediate user attention to avoid problems.
-
-> [!CAUTION]
-> Advises about risks or negative outcomes of certain actions.
-
-
 
 ## Motivation
-In der Spieleentwicklung, insbesondere bei Spielen mit vielen kurzlebigen Objekten (z. B. Projektile, Partikeleffekte, Gegner), kann das ständige Erzeugen (Instanziieren) und Zerstören dieser Objekte zu Leistungseinbußen führen. Jedes instanzierte Objekt wird im Speicher allokiert, initialisiert, zur Szene hinzugefügt und später aufgrund von Ereignissen wie Kollisionen aus dem Speicher entfernt. Wenn dies häufig in kurzer Zeit geschieht, kann es zu spürbaren Rucklern kommen.
-Das Object Pooling Pattern ist ein Entwurfsmuster, das dieses Problem minimiert. Anstatt Objekte bei Bedarf neu zu erstellen und später zu zerstören, wird eine vorgegebene Anzahl von Objekten initial erstellt und in einem "Pool" vorgehalten. Wenn ein Objekt benötigt wird, wird es dem Pool entnommen, aktiviert, verwendet und anschließend nicht zerstört, sondern deaktiviert und wieder dem Pool hinzugefügt. Es kann dann erneut aus dem Pool entnommen und wiederverwendet werden.
-Stell dir das wie eine Bibliothek vor: Anstatt jedes Mal ein neues Buch zu kaufen (instanziieren) und es nach dem Lesen wegzuwerfen (freigeben), leihst du dir ein Buch aus der Bibliothek (Pool). Nach dem Lesen gibst du es zurück, sodass es für andere verfügbar ist. Die Bibliothek verwaltet die vorhandenen Bücher und gibt sie bei Bedarf aus.
+
+In der Spieleentwicklung führen Spiele mit vielen kurzlebigen Objekten – wie Projektilen, Partikeleffekten oder Gegnern – oft zu Leistungsproblemen, wenn diese Objekte ständig erstellt und zerstört werden. Jeder dieser Vorgänge umfasst mehrere ressourcenintensive Schritte:
+
+- Speicherallokation: Das Objekt wird im Speicher reserviert.
+- Initialisierung: Eigenschaften wie Position oder Geschwindigkeit werden gesetzt.
+- Szenenintegration: Das Objekt wird in den Szenenbaum eingefügt.
+- Freigabe: Nach Ereignissen wie Kollisionen oder Ablauf wird das Objekt aus dem Speicher entfernt.
+
+Häufiges Ausführen dieser Schritte in kurzer Zeit kann zu spürbaren Rucklern oder Verzögerungen führen, da die Prozesse die CPU und den Speicher belasten.
 <br>
 <br>
 ## Das Problem
 Ein klassisches Beispiel sind Projektile in Bullet Hell Shootern. In jedem Frame oder in kurzen Abständen werden neue Projektile instanziiert. Wenn sie den Bildschirm verlassen oder ein Ziel treffen, werden sie freigegeben. Bei einer großen Anzahl von Projektilen kann dieser Prozess die CPU belasten und zu Leistungsproblemen führen.
 Ohne Object Pooling könnte ein typischer Anwendungsfall in Godot so aussehen:
 
----
+<br>
+
 1. Ein Bedarf entsteht (z. B. der Spieler schießt).
 2. Ein neues Objekt (z. B. ein Projektil) wird instanziiert `(PackedScene.instance())`.
 3. Das Objekt wird initialisiert und zum Szenenbaum hinzugefügt `(add_child())`.
@@ -44,42 +25,41 @@ Ohne Object Pooling könnte ein typischer Anwendungsfall in Godot so aussehen:
 5. Das Objekt hat seinen Zweck erfüllt oder ist nicht mehr relevant (trifft etwas, verlässt den Bildschirm).
 6. Das Objekt wird zur Freigabe vorgemerkt `(queue_free())`.
 7. Später im Frame (oder danach) wird der Speicher des Objekts freigegeben.
----
+
+<br>
 
 Dieser ständige Zyklus des Erzeugens und Zerstörens kann erhebliche Verarbeitungszeit beanspruchen und zu Spitzen in der Frametime führen, wenn viele Objekte gleichzeitig erstellt oder freigegeben werden.
 
 > [!IMPORTANT]
 > Obwohl Godot's Speicherverwaltung, insbesondere in GDScript, oft effizienter ist als in Umgebungen mit traditioneller Garbage Collection, und `queue_free()` asynchron arbeitet, kann der Overhead des Instanziierens von Szenen immer noch relevant sein, wenn es exzessiv betrieben wird.
 <br>
-
-
-## Wann sollte Object Pooling verwendet werden?
-Object Pooling ist sinnvoll, wenn:
-
-- Häufiges Erzeugen und Zerstören von Objekten stattfindet.
-- Hohe Kosten für die Objekterzeugung durch Ressourcenallokierung, Verbindungsaufbau oder komplexe Initialisierung entstehen.
-- Begrenzte Anzahl gleichzeitig benötigter Objekte existiert, und die maximale Anzahl eingeschränkt werden kann.
-- Vorhersehbare Objektlast vorliegt, sodass die ungefähre Anzahl der benötigten Objekte im Voraus abgeschätzt werden kann.
-
-<br>
 <br>
 
 ## Das Pattern
-Das Object Pooling Pattern löst dieses Problem, indem es den Lebenszyklus der Objekte verändert:
 
----
-1. **Initialisierung**: Zu Beginn eines Levels oder Spielabschnitts wird eine bestimmte Anzahl von Objekten des gewünschten Typs erstellt und in einem Pool gespeichert. Diese Objekte sind zunächst inaktiv, unsichtbar und befinden sich in einem deaktivierten Zustand.
-2. **Anforderung**: Wenn ein Objekt benötigt wird, fragt der anfordernde Code (der "Client", z. B. der Spieler-Charakter, der ein Projektil abfeuern möchte) den Pool nach einem verfügbaren Objekt.
-3. **Entnahme**: Der Pool liefert ein ungenutztes Objekt aus seiner Sammlung.
-4. **Nutzung**: Der Client initialisiert das erhaltene Objekt für seine spezifische Verwendung (z. B. setzt Position, Richtung, Geschwindigkeit) und aktiviert es (macht es sichtbar).
-5. **Rückgabe**: Wenn das Objekt nicht mehr benötigt wird (z. B. das Projektil trifft ein Ziel oder verlässt den Bildschirm), ruft der Client eine Methode am Pool auf, um das Objekt zurückzugeben.
-6. **Wiederverwertung**: Der Pool setzt das zurückgegebene Objekt in seinen ungenutzten Zustand zurück (macht es unsichtbar, deaktiviert es) und fügt es wieder seiner Sammlung hinzu, bereit für die nächste Anforderung.
----
+Das **Object Pooling Pattern** ist ein Entwurfsmuster, das diese Leistungseinbußen minimiert. Statt Objekte bei Bedarf neu zu erstellen und anschließend zu zerstören, wird eine feste Anzahl von Objekten zu Spielbeginn vorbereitet und in einem Pool gespeichert. Der Lebenszyklus eines Objekts im Pool läuft wie folgt ab:
 
-Der Kern des Patterns ist die Vermeidung des wiederholten Instanziierens und Freigebens zur Laufzeit. Stattdessen wird der Hauptaufwand auf die Initialisierung des Pools verlagert. Während des Spiels werden Objekte lediglich "ausgeliehen" und "zurückgegeben", was in der Regel deutlich performanter ist als das vollständige Erstellen und Zerstören von Knoten im Szenenbaum.
+1. **Entnahme**: Ein inaktives Objekt wird aus dem Pool entnommen.
+2. **Aktivierung**: Das Objekt wird an die benötigte Stelle gesetzt und die notwendigen Komponenten aktiviert.
+3. **Nutzung**: Das Objekt führt seine funktion aus (z.B. ein Projektil das sich bewegt)
+4. **Rückgabe**: Nach Gebrauch wird das Objekt deaktiviert (unsichtbar und inaktiv) und in den Pool zurückgegeben, bereit für die Wiederverwendung.
+
+Der Kern des Patterns ist die **Vermeidung des wiederholten Instanziierens und Freigebens zur Laufzeit**. Stattdessen wird der Hauptaufwand auf die Initialisierung des Pools verlagert. Während des Spiels werden Objekte lediglich "ausgeliehen" und "zurückgegeben", was in der Regel deutlich performanter ist als das vollständige Erstellen und Zerstören von Knoten im Szenenbaum.
 <br>
 <br>
-## Implementierung in Godot
+
+## Wann sollte Object Pooling verwendet werden?
+Object Pooling kann sinvoll sein wenn:
+
+- [ ] **Häufiges Erzeugen und Zerstören** von Objekten stattfindet, z. B. bei Projektilen in einem Bullet-Hell-Shooter, die schnell gespawnt und nach Kollisionen oder Verlassen des Bildschirms entfernt werden.
+- [ ] **Hohe Kosten für die Objekterzeugung** entstehen, etwa durch komplexe Initialisierungen wie das Laden von komplexen Klassen.
+- [ ] **Eine begrenzte Anzahl** von Objekten benötigt wird, z. B. bei einer festen Anzahl von Gegnern.
+- [ ] **Vermeidung von Speicherfragmentierung**, z. B. in Spielen mit langen Laufzeiten, wie Roguelikes, wo häufiges Allokieren und Freigeben von Speicher die Performance langfristig beeinträchtigen kann.
+
+<br>
+<br>
+
+# Implementierung in Godot
 Die Implementierung eines Object Pools in Godot kann auf verschiedene Arten erfolgen, oft unter Verwendung von Arrays oder Dictionaries, um die Objekte zu speichern. Für dieses Beispiel konzentrieren wir uns auf zwei Skripte: projectile.gd für die Funktionalität des Projektils und turret.gd, der den Pool verwaltet und Projektile abfeuert.
 Object Pool Skript
 Nachfolgend ein Beispiel für ein GDScript zur Verwaltung eines Object Pools:
@@ -215,12 +195,7 @@ Wenn ein Projektil instanziert wurde gibt es zwei Möglichkeiten wie es deaktivi
     	for i in range(projectiles_per_shot):
     		var projectile = get_pooled_projectile()
     		if projectile:
-    			var angle_step = 0.0
-    			if projectiles_per_shot > 1:
-    				angle_step = spread_angle_degrees / (projectiles_per_shot - 1)
-    			var current_angle = -spread_angle_degrees / 2.0 + i * angle_step
-    			var angle_rad = deg_to_rad(current_angle)
-    			var rotation_transform = Transform3D().rotated(Vector3.UP, angle_rad)
+    			var rotation_transform = Transform3D().rotated(Vector3.UP, 0)
     			var spawn_direction = rotation_transform.basis * base_direction
     			projectile.speed = projectile_speed
     			projectile.activate(spawn_point.global_position, spawn_direction)
@@ -257,7 +232,7 @@ Wenn ein Projektil instanziert wurde gibt es zwei Möglichkeiten wie es deaktivi
     		projectile_pool.append(projectile) 
     
 Hier werden die Grundvariablen für den Projectile Pool gesetzt. Durch `@export` können diese auch über den Editor eingestellt werden. Zusätzlich wird ein leeres Array `projectile_pool` erstellt welches Referenzen zu allen Projectiles besitzt. 
-In der `ready` Funktion werden anschließend mittels eines `for` Loops die Projektile instanziert, als children zum Turret hinzugefügt und deaktiviert um Kollisionen zu verhindern und sie unsichtbar zu machen. In jedem Loop durchlauf werden außerdem mit `projectile_pool.append(projectile)` die
+In der `_ready()` Funktion werden anschließend mittels eines `for` Loops die Projektile instanziert und deaktiviert um Kollisionen zu verhindern und sie unsichtbar zu machen. In jedem Loop durchlauf werden außerdem mit `projectile_pool.append(projectile)` die
 instanzierten Projektile zum Array hinzugefügt.
 
 ---
@@ -316,14 +291,4 @@ Wenn das Projektil valide ist werden anschließend `transform` und `rotation` so
 
 |[Project Files](https://github.com/KevinRyborz/GodotObjectPooling/releases/tag/v.0.0.1)|
 |---|
-
-
-
-
-## Erklärung
-
-Initialisierung: Der Pool wird in _ready() mit pool_size Instanzen der Projektil-Szene gefüllt. Objekte werden unsichtbar gemacht und deaktiviert, um die Ressourcennutzung zu minimieren.
-Objekte anfordern: Die Methode get_object() prüft, ob ein ungenutztes Objekt (basierend auf Sichtbarkeit) verfügbar ist. Falls nicht, wird dynamisch ein neues erstellt.
-Objekte zurückgeben: Die Methode return_object() deaktiviert das Objekt und setzt es in einen ungenutzten Zustand zurück, sodass es für zukünftige Anforderungen verfügbar ist.
-
 
