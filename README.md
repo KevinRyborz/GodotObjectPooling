@@ -340,7 +340,7 @@ Wenn das Projektil valide ist werden anschließend `transform` und `rotation` so
 ## Beispielprojekt
 <br>
 
-|[Web Build](https://kevinryborz.github.io/GodotObjectPooling/)|
+|[Hier klicken und ausprobieren](https://kevinryborz.github.io/GodotObjectPooling/)|
 |---|
 > [!NOTE]
 > Mit der **Linken Maustaste** können die Projektile abgefeuert werden. Sind keine im Pool vorhanden werden keine mehr instanziert.
