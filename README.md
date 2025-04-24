@@ -202,7 +202,6 @@ Wenn ein Projektil instanziert wurde gibt es zwei Möglichkeiten wie es deaktivi
     	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
     		spawn_projectiles()
     
-    # Zählt die Anzahl der inaktiven Projektile im Pool
     func count_inactive_projectiles():
     	var inactive_count = 0
     	for projectile in projectile_pool:
@@ -215,7 +214,6 @@ Wenn ein Projektil instanziert wurde gibt es zwei Möglichkeiten wie es deaktivi
     		print("Projectile pool is empty!")
     		return
     
-    	# Prüfe, ob genügend inaktive Projektile verfügbar sind
     	if count_inactive_projectiles() < projectiles_per_shot:
     		print("Nicht genügend inaktive Projektile verfügbar! Benötigt: ", projectiles_per_shot)
     		return
@@ -240,12 +238,9 @@ Wenn ein Projektil instanziert wurde gibt es zwei Möglichkeiten wie es deaktivi
     			projectile.activate(spawn_point.global_position, spawn_direction)
     
     func get_pooled_projectile():
-    	# Gehe durch alle Projektile im Pool
     	for projectile in projectile_pool:
-    		# Wenn ein Projektil nicht aktiv ist, geben wir es zurück
     		if not projectile.is_active:
     			return projectile
-    	# Wenn kein inaktives Projektil gefunden wurde, geben wir nichts zurück
     	print("Kein freies Projektil im Pool gefunden!")
     	return null
 
