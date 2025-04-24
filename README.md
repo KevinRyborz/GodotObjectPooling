@@ -32,7 +32,8 @@
 In der Spieleentwicklung, insbesondere bei Spielen mit vielen kurzlebigen Objekten (z. B. Projektile, Partikeleffekte, Gegner), kann das ständige Erzeugen (Instanziieren) und Zerstören dieser Objekte zu Leistungseinbußen führen. Jedes instanzierte Objekt wird im Speicher allokiert, initialisiert, zur Szene hinzugefügt und später aufgrund von Ereignissen wie Kollisionen aus dem Speicher entfernt. Wenn dies häufig in kurzer Zeit geschieht, kann es zu spürbaren Rucklern kommen.
 Das Object Pooling Pattern ist ein Entwurfsmuster, das dieses Problem minimiert. Anstatt Objekte bei Bedarf neu zu erstellen und später zu zerstören, wird eine vorgegebene Anzahl von Objekten initial erstellt und in einem "Pool" vorgehalten. Wenn ein Objekt benötigt wird, wird es dem Pool entnommen, aktiviert, verwendet und anschließend nicht zerstört, sondern deaktiviert und wieder dem Pool hinzugefügt. Es kann dann erneut aus dem Pool entnommen und wiederverwendet werden.
 Stell dir das wie eine Bibliothek vor: Anstatt jedes Mal ein neues Buch zu kaufen (instanziieren) und es nach dem Lesen wegzuwerfen (freigeben), leihst du dir ein Buch aus der Bibliothek (Pool). Nach dem Lesen gibst du es zurück, sodass es für andere verfügbar ist. Die Bibliothek verwaltet die vorhandenen Bücher und gibt sie bei Bedarf aus.
-
+<br>
+<br>
 ## Das Problem
 Ein klassisches Beispiel sind Projektile in Bullet Hell Shootern. In jedem Frame oder in kurzen Abständen werden neue Projektile instanziiert. Wenn sie den Bildschirm verlassen oder ein Ziel treffen, werden sie freigegeben. Bei einer großen Anzahl von Projektilen kann dieser Prozess die CPU belasten und zu Leistungsproblemen führen.
 Ohne Object Pooling könnte ein typischer Anwendungsfall in Godot so aussehen:
@@ -51,6 +52,8 @@ Dieser ständige Zyklus des Erzeugens und Zerstörens kann erhebliche Verarbeitu
 
 > [!IMPORTANT]
 > Obwohl Godot's Speicherverwaltung, insbesondere in GDScript, oft effizienter ist als in Umgebungen mit traditioneller Garbage Collection, und `queue_free()` asynchron arbeitet, kann der Overhead des Instanziierens von Szenen immer noch relevant sein, wenn es exzessiv betrieben wird.
+<br>
+
 
 ## Wann sollte Object Pooling verwendet werden?
 Object Pooling ist sinnvoll, wenn:
@@ -60,6 +63,8 @@ Object Pooling ist sinnvoll, wenn:
 - Begrenzte Anzahl gleichzeitig benötigter Objekte existiert, und die maximale Anzahl eingeschränkt werden kann.
 - Vorhersehbare Objektlast vorliegt, sodass die ungefähre Anzahl der benötigten Objekte im Voraus abgeschätzt werden kann.
 
+<br>
+<br>
 
 ## Das Pattern
 Das Object Pooling Pattern löst dieses Problem, indem es den Lebenszyklus der Objekte verändert:
@@ -74,7 +79,8 @@ Das Object Pooling Pattern löst dieses Problem, indem es den Lebenszyklus der O
 ---
 
 Der Kern des Patterns ist die Vermeidung des wiederholten Instanziierens und Freigebens zur Laufzeit. Stattdessen wird der Hauptaufwand auf die Initialisierung des Pools verlagert. Während des Spiels werden Objekte lediglich "ausgeliehen" und "zurückgegeben", was in der Regel deutlich performanter ist als das vollständige Erstellen und Zerstören von Knoten im Szenenbaum.
-
+<br>
+<br>
 ## Implementierung in Godot
 Die Implementierung eines Object Pools in Godot kann auf verschiedene Arten erfolgen, oft unter Verwendung von Arrays oder Dictionaries, um die Objekte zu speichern. Für dieses Beispiel konzentrieren wir uns auf zwei Skripte: projectile.gd für die Funktionalität des Projektils und turret.gd, der den Pool verwaltet und Projektile abfeuert.
 Object Pool Skript
@@ -84,8 +90,8 @@ Nachfolgend ein Beispiel für ein GDScript zur Verwaltung eines Object Pools:
     extends Node3D
     
     var speed = 20.0
-    var direction = Vector3.FORWARD
-    var is_active = false
+    var direction = Vector3.FORWARD 
+    var is_active = false 
     
     @onready var collision_shape = $Area3D/CollisionShape3D
     @onready var mesh_instance = $MeshInstance3D  
@@ -118,6 +124,53 @@ Nachfolgend ein Beispiel für ein GDScript zur Verwaltung eines Object Pools:
     func _on_area_3d_body_entered(body: Node3D) -> void:
     	if is_active:
     		deactivate()
+
+### Erklärung zu `projectile.gd`
+<details>
+<summary>Aufklappen</summary>
+
+    var speed = 20.0
+    var direction = Vector3.FORWARD 
+    var is_active = false 
+Hier werden die Geschwindigkeit, die Schussrichtung und die bool, welche für die Aktivierung der Projektile zuständig ist, gesetzt. 
+
+---
+      func _process(delta):
+        	if is_active:
+        		global_translate(direction * speed * delta)
+In der process function (jeden tick) wird geprüft ob das Projektil aktiviert ist. Wenn ja soll es in die Schussrichtung mit der zuvor gesetzen Geschwindigkeit fliegen.
+
+---
+    func activate(pos: Vector3, dir: Vector3):
+    	global_position = pos
+    	direction = dir.normalized()
+    	is_active = true
+    	visible = true
+    	timer.start()
+    	if collision_shape:
+    		collision_shape.disabled = false
+    
+    func deactivate():
+    	is_active = false
+    	visible = false
+    	if collision_shape:
+    		collision_shape.disabled = true
+Die Aktivieren und Deaktivieren Funktionen steuern ob die Projektile sichtbar sind und ob mit ihnen kollidiert werden kann. Da die bool `is_active` zu Beginn `false` ist kummert sich die `_process` Funktion darum die Projektile standardmäßig zu deaktivieren. 
+
+---
+      func _on_timer_timeout():
+        	if is_active:
+        		deactivate()
+    
+    func _on_area_3d_body_entered(body: Node3D) -> void:
+    	if is_active:
+    		deactivate()
+Wenn ein Projektil instanziert wurde gibt es zwei Möglichkeiten wie es deaktiviert werden kann. Wenn der festgelegte Timer abläuft wird es deaktiviert. Das gleiche gilt für den Fall, dass das Projektil mit etwas kollidiert. Auch hier wird die `is_active` bool auf false gesetzt. 
+
+---
+
+
+</details>
 
 ### turret.gd
     extends Node3D
@@ -181,12 +234,24 @@ Nachfolgend ein Beispiel für ein GDScript zur Verwaltung eines Object Pools:
     
     	print("Pool exhausted!")
     	return null 
+     
+### Erklärung zu `turret.gd`
+<details>
+<summary>Aufklappen</summary>
+
+sachen sagen machen 
+</details>
+
 
 ## Beispielprojekt
 
-|[Web Anwendung]([https://github.com/](https://kevinryborz.github.io/GodotObjectPooling/)|
+
+|[Example](https://kevinryborz.github.io/GodotObjectPooling/)|
 |---|
 
+> [!NOTE]
+> Mit der **Linken Maustaste** können die Projektile abgefeuert werden. Sind keine im Pool vorhanden werden keine mehr instanziert.
+> Alle zerstörten Projektile (aufgrund von Kollision oder Zeit) werden in den Pool zurückgeführt.
 
 
 ## Erklärung
