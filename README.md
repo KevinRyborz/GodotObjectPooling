@@ -240,6 +240,8 @@ Wenn ein Projektil instanziert wurde gibt es zwei Möglichkeiten wie es deaktivi
 <summary>Aufklappen</summary>
 
 sachen sagen machen 
+
+
 </details>
 
 
@@ -248,6 +250,8 @@ sachen sagen machen
 
 |[Example](https://kevinryborz.github.io/GodotObjectPooling/)|
 |---|
+
+> hinzufügen dass man den pool ja begrenzen kann gar nicht zu schießen wenn nicht mindestens X projektile im Pool sind
 
 > [!NOTE]
 > Mit der **Linken Maustaste** können die Projektile abgefeuert werden. Sind keine im Pool vorhanden werden keine mehr instanziert.
