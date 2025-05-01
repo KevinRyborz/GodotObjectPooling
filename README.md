@@ -348,3 +348,13 @@ Wenn das Projektil valide ist werden anschließend `transform` und `rotation` so
 
 |[Project Files](https://github.com/KevinRyborz/GodotObjectPooling/releases/tag/v.0.0.1)|
 |---|
+
+## Weitere Imolementationen und Erklärungen
+|[Object Pooling Erklärung und Implementierung in Unreal Engine (Blueprints)](https://youtu.be/f797l7YTcgc)|
+|---|
+
+|[Kurze Übersicht zu Object Pooling in Godot](https://youtu.be/zyylMd6WEeQ)|
+|---|
+
+|[Ausfürhlichere Erklärung zu Object Pooling in Godot und Implementierung](https://youtu.be/lJRqKJQVjf4)|
+|---|
