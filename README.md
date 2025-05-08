@@ -19,11 +19,11 @@ Ohne Object Pooling könnte ein typischer Anwendungsfall in Godot so aussehen:
 <br>
 
 1. Ein Bedarf entsteht (z. B. der Spieler schießt).
-2. Ein neues Objekt (z. B. ein Projektil) wird instanziiert `(PackedScene.instance())`.
-3. Das Objekt wird initialisiert und zum Szenenbaum hinzugefügt `(add_child())`.
+2. Ein neues Objekt (z. B. ein Projektil) wird instanziiert `PackedScene.instance()`.
+3. Das Objekt wird initialisiert und zum Szenenbaum hinzugefügt `add_child()`.
 4. Das Objekt führt seine Logik aus (bewegt sich, prüft Kollisionen).
 5. Das Objekt hat seinen Zweck erfüllt oder ist nicht mehr relevant (trifft etwas, verlässt den Bildschirm).
-6. Das Objekt wird zur Freigabe vorgemerkt `(queue_free())`.
+6. Das Objekt wird zur Freigabe vorgemerkt `queue_free()`.
 7. Später im Frame (oder danach) wird der Speicher des Objekts freigegeben.
 
 <br>
